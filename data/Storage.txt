@@ -1,0 +1,99 @@
+/
+    pattern_0
+    pattern_1
+    pattern_2
+    pattern_3
+    scenes
+    brightness
+    token
+    pin
+
+--------------------------------------------------------------------------------
+BLE Advanced commands
+--------------------------------------------------------------------------------
+
+Manage patterns   |
+-------------------
+
+Add :
+
+| TOKEN 16B | CMD 1B | ID 2B | NAME SIZE 1B | NAME | BRIGHTNESS 1B | NB AMINS 1B | NB COLORS 1B |
+| X         | 0      | X     | X            | X    | X             | X           | X            |
+
+| C START IDX 2B | C END IDX 2B  | C START C 4B | C END C 4B |
+| X              | X             | X            | X          |
+
+| A TYPE 1B | A START IDX 2B | A END IDX 2B | A PARAM 1B |
+| X         | X              | X            | X          |
+
+Remove:
+
+| TOKEN 16B | CMD 1B | ID 2B |
+| X         | 1      | X     |
+
+Update:
+
+| TOKEN 16B | CMD 1B | ID 2B | NAME SIZE 1B | NAME | BRIGHTNESS 1B | NB AMINS 1B | NB COLORS 1B |
+| X         | 2      | X     | X            | X    | X             | X           | X            |
+
+| C START IDX 2B | C END IDX 2B  | C START C 4B | C END C 4B |
+| X              | X             | X            | X          |
+
+| A TYPE 1B | A START IDX 2B | A END IDX 2B | A PARAM 1B |
+| X         | X              | X            | X          |
+
+List:
+
+| TOKEN 16B | CMD 1B |
+| X         | 3      |
+
+Get:
+
+| TOKEN 16B | CMD 1B | ID 2B |
+| X         | 4      | X     |
+
+Manage scenes     |
+-------------------
+
+Add :
+
+| TOKEN 16B | CMD 1B | NAME SIZE 1B | NAME | NB LINKS |
+| X         | 0      | X            | X    | X        |
+
+| LINK0 STRIP 1B | LINK0 PATT 2B  |
+| X              | X              |
+
+On Write -> Set the new ID or -1
+
+Remove:
+
+| TOKEN 16B | CMD 1B | ID 1B |
+| X         | 1      | X     |
+
+On Write -> 1 for success, 0 for error
+
+Update:
+
+| TOKEN 16B | CMD 1B | ID 1B | NAME SIZE 1B | NAME | NB LINKS |
+| X         | 2      | X     | X            | X    | X        |
+
+| LINK0 STRIP 1B | LINK0 PATT 2B  |
+| X              | X              |
+
+On Write -> 1 for success, 0 for error
+
+GetCount:
+
+| TOKEN 16B | CMD 1B |
+| X         | 3      |
+
+On Write -> Write number of scenes
+
+Get:
+
+| TOKEN 16B | CMD 1B | ID 1B |
+| X         | 4      | X     |
+
+On Write -> Set scene data or -1 on error
+
+Response if of same format as update command without token and command
