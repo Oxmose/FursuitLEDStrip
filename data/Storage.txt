@@ -17,40 +17,53 @@ Manage patterns   |
 
 Add :
 
-| TOKEN 16B | CMD 1B | ID 2B | NAME SIZE 1B | NAME | BRIGHTNESS 1B | NB AMINS 1B | NB COLORS 1B |
-| X         | 0      | X     | X            | X    | X             | X           | X            |
+| TOKEN 16B | CMD 1B | NAME SIZE 1B | NAME | BRIGHTNESS 1B | NB AMINS 1B | NB COLORS 1B |
+| X         | 0      | X            | X    | X             | X           | X            |
+
+| A TYPE 1B | A START IDX 2B | A END IDX 2B | A PARAM 1B |
+| X         | X              | X            | X          |
+
 
 | C START IDX 2B | C END IDX 2B  | C START C 4B | C END C 4B |
 | X              | X             | X            | X          |
 
-| A TYPE 1B | A START IDX 2B | A END IDX 2B | A PARAM 1B |
-| X         | X              | X            | X          |
+On Write -> Set the new ID or -1
 
 Remove:
 
 | TOKEN 16B | CMD 1B | ID 2B |
 | X         | 1      | X     |
 
+On Write -> 1 for success, 0 for error
+
 Update:
 
 | TOKEN 16B | CMD 1B | ID 2B | NAME SIZE 1B | NAME | BRIGHTNESS 1B | NB AMINS 1B | NB COLORS 1B |
 | X         | 2      | X     | X            | X    | X             | X           | X            |
 
+| A TYPE 1B | A START IDX 2B | A END IDX 2B | A PARAM 1B |
+| X         | X              | X            | X          |
+
 | C START IDX 2B | C END IDX 2B  | C START C 4B | C END C 4B |
 | X              | X             | X            | X          |
 
-| A TYPE 1B | A START IDX 2B | A END IDX 2B | A PARAM 1B |
-| X         | X              | X            | X          |
+
+On Write -> 1 on success, 0 on error
 
 List:
 
 | TOKEN 16B | CMD 1B |
 | X         | 3      |
 
+On Write -> Write list of patterns ids, starting with the number of patterns
+
 Get:
 
 | TOKEN 16B | CMD 1B | ID 2B |
 | X         | 4      | X     |
+
+On Write -> Set scene data or -1 on error
+Response is of same format as update command without token and command
 
 Manage scenes     |
 -------------------
@@ -95,5 +108,4 @@ Get:
 | X         | 4      | X     |
 
 On Write -> Set scene data or -1 on error
-
-Response if of same format as update command without token and command
+Response is of same format as update command without token and command

@@ -20,8 +20,8 @@
  * INCLUDES
  ******************************************************************************/
 #include <string>  /* std::string*/
-#include <WiFi.h>  /* Mac address provider */
-#include <Types.h> /* Defined Types */
+#include <esp_mac.h>  /* Mac address provider */
+#include <esp_timer.h>  /* Timer provider */
 
 /* Header File */
 #include <HWLayer.h>
@@ -80,7 +80,7 @@ static const char spkHexTable[16] = {
 
 const char * HWLayer::GetHWUID(void)
 {
-    uint32_t uid;
+    uint8_t  value[6];
     uint8_t  i;
     uint8_t  curVal;
 
@@ -89,12 +89,12 @@ const char * HWLayer::GetHWUID(void)
     {
         HWLayer::HWUID_ = "FSL-";
 
-        uid = (uint32_t)ESP.getEfuseMac();
+        esp_read_mac(value, ESP_MAC_BT);
 
-        for(i = 0; i < 8; ++i)
+        for(i = 0; i < 4; ++i)
         {
-            curVal = uid >> (28 - i * 4);
-            HWLayer::HWUID_ += spkHexTable[curVal & 0xF];
+            HWLayer::HWUID_ += std::string(1, spkHexTable[(value[i] >> 4) & 0xF]) +
+                               std::string(1, spkHexTable[value[i] & 0xF]);
         }
     }
 

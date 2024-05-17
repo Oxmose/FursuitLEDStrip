@@ -19,7 +19,6 @@
  * INCLUDES
  ******************************************************************************/
 #include <cstring>            /* String manipulation*/
-#include <Types.h>            /* Defined Types */
 #include <Logger.h>           /* Logger service */
 #include <version.h>          /* Versioning */
 #include <HWLayer.h>          /* Hardware Services */
@@ -92,14 +91,11 @@ OLED::~OLED(void)
     delete pDisplay_;
 }
 
-EErrorCode OLED::Init(void)
+void OLED::Init(void)
 {
-    EErrorCode retCode;
-
     if(pDisplay_ == nullptr)
     {
         LOG_ERROR("SSD1306 allocation failed.\n");
-        retCode = EErrorCode::ACTION_FAILED;
     }
 
     if(pDisplay_->begin(SSD1306_SWITCHCAPVCC, 0x3C))
@@ -110,17 +106,11 @@ EErrorCode OLED::Init(void)
         pDisplay_->clearDisplay();
         pDisplay_->setCursor(0, 0);
         pDisplay_->display();
-
-        retCode = EErrorCode::NO_ERROR;
     }
     else
     {
         LOG_ERROR("SSD1306 initialization failed.\n");
-
-        retCode = EErrorCode::ACTION_FAILED;
     }
-
-    return retCode;
 }
 
 void OLED::DisplaySleep(void)

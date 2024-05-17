@@ -26,7 +26,6 @@
 #include <FS.h>    /* Filesystem services */
 #include <SPIFFS.h> /* SPIFFS driver */
 #include <sys/stat.h> /* stat services */
-#include <Types.h> /* Defined types */
 #include <Pattern.h> /* Patern object */
 #include <HWLayer.h> /* Hardware layer services */
 #include <Logger.h> /* Logger service */
@@ -38,15 +37,17 @@
  * CONSTANTS
  ******************************************************************************/
 
-#define COMMIT_TIME_SYNC  10000000 // 10s in us
+#define COMMIT_TIME_SYNC  120000000UL // 120s in us
 #define BUFFER_SIZE       512
 #define BIG_BUFFER_SIZE   16384
 
+#define INIT_FILE_PATH      "/init"
 #define BLE_PIN_PATH        "/pin"
 #define BLE_TOKEN_PATH      "/token"
 #define BRIGHTNESS_PATH     "/brightness"
 #define PATTERN_PATH        "/pattern_"
-#define SCENES_PATH         "/scenes_"
+#define SCENES_PATH         "/scenes"
+#define SELECTED_SCENE_PATH "/selected_scene"
 
 /*******************************************************************************
  * MACROS
@@ -139,7 +140,7 @@ void Storage::SavePatterns(const std::vector<std::shared_ptr<Pattern>>& krPatter
     needUpdate_ = true;
 }
 
-void Storage::GetScenes(SSceneTable& rScenes) const
+void Storage::GetScenes(std::vector<std::shared_ptr<SScene>>& rScenes) const
 {
     if(isInit_ == false)
     {
@@ -149,7 +150,7 @@ void Storage::GetScenes(SSceneTable& rScenes) const
     rScenes = scenes_.first;
 }
 
-void Storage::SaveScenes(const SSceneTable& krScenes)
+void Storage::SaveScenes(const std::vector<std::shared_ptr<SScene>>& krScenes)
 {
     if(isInit_ == false)
     {
@@ -158,6 +159,19 @@ void Storage::SaveScenes(const SSceneTable& krScenes)
 
     scenes_.first  = krScenes;
     scenes_.second = true;
+
+    needUpdate_ = true;
+}
+
+void Storage::SaveSelectedScene(const uint8_t kSelectedScene)
+{
+    if(isInit_ == false)
+    {
+        return;
+    }
+
+    selectedScene_.first  = kSelectedScene;
+    selectedScene_.second = true;
 
     needUpdate_ = true;
 }
@@ -246,9 +260,6 @@ void Storage::GetStorageStats(SStorageStats& rStats)
 
 Storage::Storage(void)
 {
-    uint8_t* pBuffer;
-    size_t   readSize;
-
     /* Init the SPIFFS */
     if(SPIFFS.begin(true) == false)
     {
@@ -257,7 +268,31 @@ Storage::Storage(void)
         return;
     }
 
-    isInit_         = true;
+    /* Check if we has a populated storage */
+    if(SPIFFS.exists(INIT_FILE_PATH) == false)
+    {
+        /* If not populated, perform first reset */
+        FactoryReset();
+    }
+    else
+    {
+        LOG_DEBUG("Flash already initialized.\n");
+    }
+
+    isInit_ = true;
+}
+
+void Storage::LoadData(void)
+{
+    uint8_t* pBuffer;
+    size_t   readSize;
+
+    if(isInit_ == false)
+    {
+        LOG_ERROR("Cannot load data, not initialized\n");
+        return;
+    }
+
     needUpdate_     = false;
     lastUpdateTime_ = 0;
 
@@ -368,6 +403,14 @@ void Storage::Commit(const bool kForce)
             scenes_.second = false;
         }
 
+        if(selectedScene_.second == true)
+        {
+            size = sizeof(selectedScene_.first);
+            WriteFile(SELECTED_SCENE_PATH, &selectedScene_.first, size);
+
+            selectedScene_.second = false;
+        }
+
         LOG_DEBUG("Commited cache\n");
     }
 }
@@ -376,7 +419,7 @@ void Storage::WriteFile(const char* kpPath,
                         const uint8_t* kpBuffer,
                         size_t& rSize) const
 {
-    File   file;
+    File file;
 
     /* Remove if exists */
     if(SPIFFS.exists(kpPath))
@@ -719,8 +762,7 @@ void Storage::LoadScenes(void)
 
     bufferOff = 0;
 
-    /* Read selected index and number of scenes */
-    scenes_.first.selectedIdx = *(uint8_t*)&pBuffer[bufferOff++];
+    /* Read number of scenes */
     scenesCount = *(uint8_t*)&pBuffer[bufferOff++];
 
     /* Get all scenes */
@@ -761,8 +803,13 @@ void Storage::LoadScenes(void)
         }
 
         /* Add scene */
-        scenes_.first.scenes.push_back(newScenePtr);
+        scenes_.first.push_back(newScenePtr);
     }
+
+    /* Load and cache selected scene */
+    bufferSize = BIG_BUFFER_SIZE;
+    ReadFile(SELECTED_SCENE_PATH, pBuffer, bufferSize);
+    selectedScene_.first  = *(uint8_t*)&pBuffer[0];
 
     delete[] pBuffer;
 }
@@ -776,13 +823,12 @@ void Storage::CommitScenes(void) const
     uint8_t  i;
     uint8_t* pBuffer;
     std::shared_ptr<SScene> newScenePtr;
-    const std::vector<std::shared_ptr<SScene>>& krScenes = scenes_.first.scenes;
+    const std::vector<std::shared_ptr<SScene>>& krScenes = scenes_.first;
 
     pBuffer = new uint8_t[BIG_BUFFER_SIZE];
     bufferOff = 0;
 
-    /* Save selected index and number of scenes */
-    *(uint8_t*)&pBuffer[bufferOff++] = scenes_.first.selectedIdx;
+    /* Save number of scenes */
     scenesCount = (uint8_t)krScenes.size();
     *(uint8_t*)&pBuffer[bufferOff++] = scenesCount;
 
@@ -823,4 +869,185 @@ void Storage::CommitScenes(void) const
     WriteFile(SCENES_PATH, pBuffer, bufferOff);
 
     delete[] pBuffer;
+}
+
+void Storage::FactoryReset(void)
+{
+    Storage* pStorage;
+    Pattern* pPattern;
+    File     file;
+
+    std::vector<std::shared_ptr<Pattern>> patternPtrs;
+    std::shared_ptr<Pattern> patternPtr1;
+    std::shared_ptr<Pattern> patternPtr2;
+    std::shared_ptr<Pattern> patternPtr120FULL;
+    std::shared_ptr<Pattern> patternPtr120MID;
+    std::shared_ptr<Pattern> patternPtr120LOW;
+    std::vector<SColor> colors;
+    std::vector<SAnimation> anims;
+    std::unordered_map<uint8_t, uint16_t> map;
+    std::vector<std::shared_ptr<SScene>>  scenes;
+
+    /* Create patterns */
+    patternPtrs.push_back(std::make_shared<Pattern>(0, "P0"));
+    patternPtrs.push_back(std::make_shared<Pattern>(1, "P1"));
+    patternPtrs.push_back(std::make_shared<Pattern>(2, "P2"));
+    patternPtrs.push_back(std::make_shared<Pattern>(3, "P3"));
+    patternPtrs.push_back(std::make_shared<Pattern>(4, "P4"));
+    patternPtrs.push_back(std::make_shared<Pattern>(5, "P5"));
+
+    /* Pattern 0 */
+    pPattern = patternPtrs[0].get();
+    pPattern->SetBrightness(25);
+    colors.push_back({
+        .startIdx = 14,
+        .endIdx   = 29,
+        .startColorCode = 255,
+        .endColorCode = 0
+    });
+    colors.push_back({
+        .startIdx = 44,
+        .endIdx   = 59,
+        .startColorCode = 255,
+        .endColorCode = 0
+    });
+    colors.push_back({
+        .startIdx = 60,
+        .endIdx   = 75,
+        .startColorCode = 0,
+        .endColorCode = 255
+    });
+    colors.push_back({
+        .startIdx = 90,
+        .endIdx   = 105,
+        .startColorCode = 0,
+        .endColorCode = 255
+    });
+    pPattern->SetColors(colors);
+    anims.push_back({
+        .type = ANIM_TRAIL,
+        .startIdx = 0,
+        .endIdx = 59,
+        .param = 1
+    });
+    anims.push_back({
+        .type = ANIM_TRAIL,
+        .startIdx = 119,
+        .endIdx = 60,
+        .param = 1
+    });
+    pPattern->SetAnimations(anims);
+
+    /* Pattern 1 */
+    pPattern = patternPtrs[1].get();
+    pPattern->SetBrightness(25);
+    colors.clear();
+    colors.push_back({
+        .startIdx = 0,
+        .endIdx   = 69,
+        .startColorCode = 255 << 16,
+        .endColorCode = 0
+    });
+    pPattern->SetColors(colors);
+    anims.clear();
+    anims.push_back({
+        .type = ANIM_BREATH,
+        .startIdx = 0,
+        .endIdx = 34,
+        .param = 1
+    });
+    pPattern->SetAnimations(anims);
+
+    /* Pattern 2 */
+    pPattern = patternPtrs[2].get();
+    pPattern->SetBrightness(100);
+    colors.clear();
+    colors.push_back({
+        .startIdx = 0,
+        .endIdx   = 69,
+        .startColorCode = 255 << 8,
+        .endColorCode = 0
+    });
+    pPattern->SetColors(colors);
+    anims.push_back({
+        .type = ANIM_TRAIL,
+        .startIdx = 0,
+        .endIdx = 20,
+        .param = 1
+    });
+    pPattern->SetAnimations(anims);
+
+    /* Consumption test patterns */
+    pPattern = patternPtrs[3].get();
+    pPattern->SetBrightness(255);
+    colors.clear();
+    colors.push_back({
+        .startIdx = 0,
+        .endIdx   = 119,
+        .startColorCode = 0xFFFFFFFF,
+        .endColorCode = 0xFFFFFFFF
+    });
+    pPattern->SetColors(colors);
+
+    pPattern = patternPtrs[4].get();
+    pPattern->SetBrightness(150);
+    colors.clear();
+    colors.push_back({
+        .startIdx = 0,
+        .endIdx   = 119,
+        .startColorCode = 0xFFFFFFFF,
+        .endColorCode = 0xFFFFFFFF
+    });
+    pPattern->SetColors(colors);
+
+    pPattern = patternPtrs[5].get();
+    pPattern->SetBrightness(50);
+    colors.clear();
+    colors.push_back({
+        .startIdx = 0,
+        .endIdx   = 119,
+        .startColorCode = 0xFFFFFFFF,
+        .endColorCode = 0xFFFFFFFF
+    });
+    pPattern->SetColors(colors);
+
+    /* Scenes */
+    scenes.push_back(std::make_shared<SScene>());
+    scenes.push_back(std::make_shared<SScene>());
+    scenes.push_back(std::make_shared<SScene>());
+    scenes.push_back(std::make_shared<SScene>());
+    scenes.push_back(std::make_shared<SScene>());
+    scenes.push_back(std::make_shared<SScene>());
+
+    scenes[0]->name = "Scene0";
+    scenes[0]->links.emplace(4, 0);
+    scenes[0]->links.emplace(5, 1);
+
+    scenes[1]->name = "Scene1";
+    scenes[1]->links.emplace(4, 2);
+    scenes[1]->links.emplace(5, 2);
+
+    scenes[2]->name = "Scene120FULL";
+    scenes[2]->links.emplace(4, 3);
+    scenes[3]->name = "Scene120MID";
+    scenes[3]->links.emplace(4, 4);
+    scenes[4]->name = "Scene120LOW";
+    scenes[4]->links.emplace(4, 5);
+    scenes[5]->name = "Scene120OFF";
+
+    SaveBrightness(255);
+    SavePin("0000");
+    SaveToken("1234567891113150");
+    SavePatterns(patternPtrs);
+    SaveScenes(scenes);
+    SaveSelectedScene(1);
+
+    Update(true);
+
+    /* Create init file */
+    LOG_DEBUG("Creating %s\n", INIT_FILE_PATH);
+    file = SPIFFS.open(INIT_FILE_PATH, FILE_WRITE);
+    close(file);
+
+    LOG_INFO("Initialized flash\n");
 }

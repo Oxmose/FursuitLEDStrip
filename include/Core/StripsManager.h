@@ -25,7 +25,6 @@
 #include <vector>     /* std::vector */
 #include <memory>     /* std::shared_ptr */
 #include <unordered_map> /* std::unordered_map */
-#include <Types.h>    /* Defined types */
 #include <LEDStrip.hpp> /* LED strip driver*/
 #include <Pattern.h>  /* Pattern object */
 
@@ -52,13 +51,6 @@ typedef struct
     std::string                           name;
     std::unordered_map<uint8_t, uint16_t> links;
 } SScene;
-
-typedef struct
-{
-    std::vector<std::shared_ptr<SScene>> scenes;
-    uint8_t                              selectedIdx;
-} SSceneTable;
-
 
 /*******************************************************************************
  * GLOBAL VARIABLES
@@ -95,14 +87,14 @@ class StripsManager
     public:
         static StripsManager* GetInstance(void);
 
-        void AddStrip(std::shared_ptr<LEDStrip> newStrip);
         void GetStripsInfo(StripsInfoTable_t& rStripsInfo) const;
 
-        void AddPattern(const std::shared_ptr<Pattern>& rkNewPattern);
-        void RemovePattern(const uint16_t kPatternId);
-        void UpdatePattern(const std::shared_ptr<Pattern>& rkNewPattern);
-        const Pattern* GetPatternInfo(const uint8_t kPatternId);
-        void GetPatternsIds(std::vector<uint8_t> rPatternIds) const;
+        uint16_t AddPattern(const std::shared_ptr<Pattern>& rkNewPattern);
+        bool RemovePattern(const uint16_t kPatternId);
+        bool UpdatePattern(const std::shared_ptr<Pattern>& rkNewPattern);
+        const Pattern* GetPatternInfo(const uint16_t kPatternId);
+        void GetPatternsIds(std::vector<uint16_t>& rPatternIds) const;
+        uint16_t GetNewPatternId(void);
 
         uint8_t AddScene(const std::shared_ptr<SScene>& rkNewScene);
         bool RemoveScene(const uint8_t kSceneIdx);
@@ -116,6 +108,12 @@ class StripsManager
         void Lock(void);
         void Unlock(void);
 
+        void Enable(void);
+        void Disable(void);
+        void Kill(void);
+
+        void CheckForActivity(void);
+
     /******************* PROTECTED METHODS AND ATTRIBUTES *********************/
     protected:
 
@@ -123,14 +121,21 @@ class StripsManager
     private:
         StripsManager(void);
 
+        void AddStrip(std::shared_ptr<LEDStrip> newStrip);
         void ActivateScene(void);
 
         static void UpdateRoutine(void* objThis);
 
+        void SavePatterns(void);
+        void SaveScenes(void);
+        void SaveSelectedScene(void) const;
+
+        bool isEnabled_;
 
         std::unordered_map<uint8_t, std::shared_ptr<LEDStrip>> strips_;
         std::unordered_map<uint16_t, std::shared_ptr<Pattern>> patterns_;
-        SSceneTable                                            scenes_;
+        std::vector<std::shared_ptr<SScene>>                   scenes_;
+        uint8_t                                                selectedScene_;
 
         SemaphoreHandle_t threadWorkLock_;
         SemaphoreHandle_t managerLock_;

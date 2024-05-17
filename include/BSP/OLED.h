@@ -24,7 +24,6 @@
 
 #include <string>             /* std::string */
 #include <cstdint>            /* Generic Types */
-#include <Types.h>            /* Defined Types */
 #include <Adafruit_GFX.h>     /* OLED Screen Manipulation */
 #include <Adafruit_SSD1306.h> /* OLED Screen Driver */
 
@@ -83,7 +82,7 @@ class OLED
         OLED(void);
         ~OLED(void);
 
-        EErrorCode Init(void);
+        void Init(void);
 
         void DisplaySleep(void);
         void SwitchOff(void);

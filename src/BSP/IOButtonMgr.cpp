@@ -19,7 +19,6 @@
  * INCLUDES
  ******************************************************************************/
 #include <cstring>   /* String manipulation*/
-#include <Types.h>   /* Defined Types */
 #include <Logger.h>  /* Logger service */
 #include <Arduino.h> /* Arduino service */
 #include <HWLayer.h> /* HW Layer service */
@@ -85,7 +84,7 @@ IOButtonMgr* IOButtonMgr::GetInstance(void)
 }
 
 
-EErrorCode IOButtonMgr::Update(void)
+void IOButtonMgr::Update(void)
 {
     uint8_t  i;
     uint8_t  btnState;
@@ -119,7 +118,6 @@ EErrorCode IOButtonMgr::Update(void)
             }
         }
     }
-    return NO_ERROR;
 }
 
 EButtonState IOButtonMgr::GetButtonState(const EButtonID kBtnId) const
@@ -149,45 +147,23 @@ IOButtonMgr::IOButtonMgr(void)
     memset(pBtnLastPress_, 0, sizeof(uint64_t) * BUTTON_MAX_ID);
     memset(pBtnStates_, 0, sizeof(EButtonState) * BUTTON_MAX_ID);
 
-    if(Init() != NO_ERROR)
-    {
-        LOG_ERROR("Failed to initialize the IO buttons\n");
-    }
-    else
-    {
-        LOG_INFO("IO Button Manager Initialized.\n")
-    }
+    Init();
 }
 
-EErrorCode IOButtonMgr::Init(void)
+void IOButtonMgr::Init(void)
 {
-    EErrorCode retCode;
-
-    retCode = SetupBtn(BUTTON_ENTER, ENTER_PIN);
-    if(retCode != NO_ERROR)
-    {
-        LOG_ERROR("Failed to init ENTER. Error %d\n", retCode);
-        return retCode;
-    }
-
-    return retCode;
+    SetupBtn(BUTTON_ENTER, ENTER_PIN);
 }
 
-EErrorCode IOButtonMgr::SetupBtn(const EButtonID kBtnId, const EButtonPin kBtnPin)
+void IOButtonMgr::SetupBtn(const EButtonID kBtnId, const EButtonPin kBtnPin)
 {
-    EErrorCode retCode;
-
     if(kBtnId < BUTTON_MAX_ID)
     {
         pinMode(kBtnPin, INPUT);
         pBtnPins_[kBtnId] = kBtnPin;
-
-        retCode = NO_ERROR;
     }
     else
     {
-        retCode = INVALID_PARAM;
+        LOG_ERROR("Failed to init buttin. Invalid ID\n");
     }
-
-    return retCode;
 }

@@ -20,7 +20,6 @@
  ******************************************************************************/
 #include <OLED.h>    /* OLED screen manager */
 #include <cstring>   /* String manipulation*/
-#include <Types.h>   /* Defined Types */
 #include <Logger.h>  /* Logging service */
 #include <Arduino.h> /* Arduino Services */
 #include <version.h> /* Versioning */
@@ -267,14 +266,7 @@ void SystemState::Init(void)
     pCurrentBLEToken_[MIN(BLE_TOCKEN_SIZE, buffer.size())] = 0;
 
     /* Initialize OLED display */
-    if(oledDisplay_.Init() != NO_ERROR)
-    {
-        LOG_ERROR("Could not initialize OLED display.\n");
-    }
-    else
-    {
-        LOG_INFO("OLED initialized.\n");
-    }
+    oledDisplay_.Init();
 }
 
 void SystemState::UpdateState(void)
@@ -451,13 +443,14 @@ void SystemState::ManageMenu1(void)
         /* Infos */
         pOLEDDisplay->printf("InfoV | %s\n", VERSION);
         pOLEDDisplay->printf("CPU: %uMHz\n", ESP.getCpuFreqMHz());
-        pOLEDDisplay->printf("Heap: %uB\n", ESP.getMinFreeHeap());
+        pOLEDDisplay->printf("Free Heap  | %ukB\n", ESP.getMinFreeHeap() / 1024);
+        pOLEDDisplay->printf("Free PSRAM | %ukB\n", ESP.getMinFreePsram() / 1024);
 
         Storage::GetInstance()->GetStorageStats(storageStats);
-        pOLEDDisplay->printf("Storage: %u%% used\n%uB/%uB",
+        pOLEDDisplay->printf("Storage: %u%% used\n%ukB/%ukB",
                              storageStats.usedSize * 100 / storageStats.totalSize,
-                             storageStats.usedSize,
-                             storageStats.totalSize);
+                             storageStats.usedSize / 1024,
+                             storageStats.totalSize / 1024);
 
         pOLEDDisplay->display();
 
@@ -475,14 +468,19 @@ void SystemState::Hibernate(const bool kDisplay)
     {
         LOG_DEBUG("Enabling Deep Sleep\n");
 
-        /* TODO: Disable LED MOSFET */
-        /* TODO: Disable LED Ctrl Pins */
         if(kDisplay == true)
         {
             oledDisplay_.DisplaySleep();
+            StripsManager::GetInstance()->Kill();
             delay(3000);
             oledDisplay_.SwitchOff();
         }
+        else
+        {
+            StripsManager::GetInstance()->Kill();
+            delay(500);
+        }
+
         esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH,   ESP_PD_OPTION_OFF);
         esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_SLOW_MEM, ESP_PD_OPTION_OFF);
         esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_FAST_MEM, ESP_PD_OPTION_OFF);

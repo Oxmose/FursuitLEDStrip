@@ -18,7 +18,6 @@
  * INCLUDES
  ******************************************************************************/
 #include <cstdint>    /* Standard Int Types */
-#include <Types.h>    /* Defined types */
 #include <Logger.h> /* Logger services */
 #include <string>  /* std::string */
 
@@ -117,4 +116,9 @@ uint16_t Pattern::GetId(void) const
 const std::string& Pattern::GetName(void) const
 {
     return name_;
+}
+
+void Pattern::ForceId(const uint16_t kNewId)
+{
+    identifier_ = kNewId;
 }

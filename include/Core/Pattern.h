@@ -23,8 +23,6 @@
 
 #include <cstdint> /* Standard Int Types */
 #include <vector>  /* CPP vectors */
-#include <Types.h> /* Defined types */
-
 
 /*******************************************************************************
  * CONSTANTS
@@ -59,7 +57,7 @@ typedef struct
 
 typedef struct
 {
-    EAnimationType type;
+    uint8_t        type;
     uint16_t       startIdx;
     uint16_t       endIdx;
     uint8_t        param;
@@ -109,10 +107,9 @@ class Pattern
         const std::vector<SColor>& GetColors(void) const;
         uint8_t GetBrightness(void) const;
 
+        void ForceId(const uint16_t kNewId);
         uint16_t GetId(void) const;
         const std::string& GetName(void) const;
-
-        void SetLastChangeTime(const uint64_t kLastChangeTime);
 
     /******************* PROTECTED METHODS AND ATTRIBUTES *********************/
     protected:

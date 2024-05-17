@@ -37,15 +37,15 @@
 #define MAIN_SERVICE_UUID               "d3e63261-287a-41a5-a421-ad0a81157af9"
 
 /* Per device characteristics */
-#define HW_VERSION_CHARACTERISTIC_UUID      "997ca8f9-abe6-4db1-b01a-768d9d405226" // OK
-#define SW_VERSION_CHARACTERISTIC_UUID      "20a14f57-d375-44c8-a9c1-470521110471" // OK
-#define SET_TOKEN_CHARACTERISTIC_UUID       "02b31496-6fda-48a5-a16e-ddb727919774" // OK
-#define GET_STRIPS_CHARACTERISTIC_UUID      "2d3a8ac3-49d3-4ec1-a9ff-837dd2ff190f" // OK
-#define GET_BATTERY_CHARACTERISTIC_UUID     "96d94fcc-ced5-48b4-b065-8c946747335e" // OK
-#define BRIGHTNESS_CHARACTERISTIC_UUID      "83670c18-c3fd-4334-bc4b-2f9a8b70a3cf" // OK
+#define HW_VERSION_CHARACTERISTIC_UUID      "997ca8f9-abe6-4db1-b01a-768d9d405226"
+#define SW_VERSION_CHARACTERISTIC_UUID      "20a14f57-d375-44c8-a9c1-470521110471"
+#define SET_TOKEN_CHARACTERISTIC_UUID       "02b31496-6fda-48a5-a16e-ddb727919774"
+#define GET_STRIPS_CHARACTERISTIC_UUID      "2d3a8ac3-49d3-4ec1-a9ff-837dd2ff190f"
+#define GET_BATTERY_CHARACTERISTIC_UUID     "96d94fcc-ced5-48b4-b065-8c946747335e"
+#define BRIGHTNESS_CHARACTERISTIC_UUID      "83670c18-c3fd-4334-bc4b-2f9a8b70a3cf"
 #define MANAGE_PATTERNS_CHARACTERISTIC_UUID "ff957108-a010-4dff-8cc2-1600f48045c3"
-#define MANAGE_SCENES_CHARACTERISTIC_UUID   "40325d79-46c1-4d7d-a71f-edfbe27b98d1" // OK
-#define SET_SCENE_CHARACTERISTIC_UUID       "d5d97123-28bf-466b-9d73-2cf3f056bae0" // OK
+#define MANAGE_SCENES_CHARACTERISTIC_UUID   "40325d79-46c1-4d7d-a71f-edfbe27b98d1"
+#define SET_SCENE_CHARACTERISTIC_UUID       "d5d97123-28bf-466b-9d73-2cf3f056bae0"
 
 #define SET_BRIGHTNESS_COMMAND_SIZE (BLE_TOCKEN_SIZE + sizeof(uint8_t))
 #define SET_TOKEN_COMMAND_SIZE      (BLE_TOCKEN_SIZE + BLE_TOCKEN_SIZE)
@@ -56,6 +56,12 @@
 #define BLE_CMD_SCENE_MGT_UPD 2
 #define BLE_CMD_SCENE_MGT_CNT 3
 #define BLE_CMD_SCENE_MGT_GET 4
+
+#define BLE_CMD_PATTERN_MGT_ADD 0
+#define BLE_CMD_PATTERN_MGT_REM 1
+#define BLE_CMD_PATTERN_MGT_UPD 2
+#define BLE_CMD_PATTERN_MGT_LST 3
+#define BLE_CMD_PATTERN_MGT_GET 4
 
 /*******************************************************************************
  * MACROS
@@ -145,7 +151,315 @@ class ManagePatternsCallback: public BLECharacteristicCallbacks
 {
     void onWrite(BLECharacteristic* pManagePatternsCharacteristic)
     {
-        LOG_INFO("Not implemented\n");
+        uint8_t*       data;
+        BLEManager*    pBle;
+
+        pBle = BLEManager::GetInstance();
+
+        data = pManagePatternsCharacteristic->getData();
+        if(pBle->ValidateToken((char*)data) == false)
+        {
+            LOG_ERROR("Invalid BLE Token\n");
+            return;
+        }
+
+        data = data + BLE_TOCKEN_SIZE;
+
+        /* Get the command */
+        switch(*data)
+        {
+            case BLE_CMD_PATTERN_MGT_ADD:
+                onPatternAdd(data + sizeof(uint8_t), pManagePatternsCharacteristic);
+                break;
+            case BLE_CMD_PATTERN_MGT_REM:
+                onPatternRemove(data + sizeof(uint8_t), pManagePatternsCharacteristic);
+                break;
+            case BLE_CMD_PATTERN_MGT_UPD:
+                onPatternUpdate(data + sizeof(uint8_t), pManagePatternsCharacteristic);
+                break;
+            case BLE_CMD_PATTERN_MGT_LST:
+                onGetPatternList(data + sizeof(uint8_t), pManagePatternsCharacteristic);
+                break;
+            case BLE_CMD_PATTERN_MGT_GET:
+                onGetPattern(data + sizeof(uint8_t), pManagePatternsCharacteristic);
+                break;
+            default:
+                LOG_ERROR("Unknown command %d\n", *data);
+        }
+    }
+
+    void onPatternAdd(const uint8_t* kpData,
+                      BLECharacteristic* pManagePatternsCharacteristic) const
+    {
+
+        uint16_t       retValue;
+        StripsManager* pStripManager;
+
+        std::shared_ptr<Pattern> newPattern;
+
+        pStripManager = StripsManager::GetInstance();
+
+        newPattern = DeserializePattern(kpData, false);
+        retValue   = pStripManager->AddPattern(newPattern);
+
+        pManagePatternsCharacteristic->setValue((uint8_t*)&retValue, sizeof(uint16_t));
+    }
+
+    void onPatternRemove(const uint8_t* kpData,
+                         BLECharacteristic* pManagePatternsCharacteristic) const
+    {
+        StripsManager* pStripManager;
+        bool           result;
+
+        pStripManager = StripsManager::GetInstance();
+
+        result = pStripManager->RemovePattern(*(uint16_t*)kpData);
+
+        pManagePatternsCharacteristic->setValue((uint8_t*)&result, sizeof(bool));
+    }
+
+    void onPatternUpdate(const uint8_t* kpData,
+                         BLECharacteristic* pManagePatternsCharacteristic) const
+    {
+        bool           retValue;
+        StripsManager* pStripManager;
+
+        std::shared_ptr<Pattern> newPattern;
+
+        pStripManager = StripsManager::GetInstance();
+
+        newPattern = DeserializePattern(kpData, true);
+        retValue   = pStripManager->UpdatePattern(newPattern);
+
+        pManagePatternsCharacteristic->setValue((uint8_t*)&retValue, sizeof(bool));
+    }
+
+    void onGetPatternList(const uint8_t* kpData,
+                          BLECharacteristic* pManagePatternsCharacteristic) const
+    {
+        uint16_t* pBuffer;
+        size_t    bufferSize;
+        size_t    i;
+        std::vector<uint16_t> patterns;
+
+        StripsManager::GetInstance()->GetPatternsIds(patterns);
+        bufferSize = patterns.size();
+        pBuffer = new uint16_t[bufferSize + 1];
+
+        /* Set number of patterns */
+        pBuffer[0] = bufferSize;
+        for(i = 0; i < bufferSize; ++i)
+        {
+            pBuffer[i + 1] = patterns[i];
+        }
+
+
+        pManagePatternsCharacteristic->setValue((uint8_t*)pBuffer,
+                                                sizeof(uint16_t) * (bufferSize + 1));
+    }
+
+    void onGetPattern(const uint8_t* kpData,
+                      BLECharacteristic* pManagePatternsCharacteristic) const
+    {
+        size_t         bufferSize;
+        uint8_t        error;
+        uint8_t*       pBuffer;
+        const Pattern* pkPattern;
+        StripsManager* pStripManager;
+
+        pStripManager = StripsManager::GetInstance();
+
+        pStripManager->Lock();
+
+        pkPattern = StripsManager::GetInstance()->GetPatternInfo(*(uint16_t*)kpData);
+        if(pkPattern == nullptr)
+        {
+            pStripManager->Unlock();
+            error = -1;
+            LOG_ERROR("Requested info for unknown pattern %d\n", *(uint16_t*)kpData);
+            pManagePatternsCharacteristic->setValue(&error, sizeof(uint8_t));
+            return;
+        }
+
+        /* Get the required buffer size */
+        const std::vector<SAnimation>& tmpAnims = pkPattern->GetAnimations();
+        const std::vector<SColor>& tmpColors = pkPattern->GetColors();
+        bufferSize = sizeof(uint16_t) +
+                     pkPattern->GetName().size() +
+                     sizeof(uint8_t) +
+                     tmpColors.size() * sizeof(SColor) +
+                     tmpAnims.size() * sizeof(SAnimation);
+        pBuffer = new uint8_t[bufferSize];
+
+        SerializePattern(pkPattern, *(uint16_t*)kpData, pBuffer);
+
+        pStripManager->Unlock();
+
+        pManagePatternsCharacteristic->setValue(pBuffer, bufferSize);
+
+        delete[] pBuffer;
+    }
+
+    void SerializePattern(const Pattern* pkPattern,
+                          const uint16_t kId,
+                          uint8_t* pBuffer) const
+    {
+        size_t buffOffset;
+        size_t sizeProp;
+
+        const std::vector<SAnimation>& tmpAnims = pkPattern->GetAnimations();
+        const std::vector<SColor>& tmpColors = pkPattern->GetColors();
+        const std::string& krName = pkPattern->GetName();
+
+        buffOffset = 0;
+
+        /* Write ID */
+        *(uint16_t*)&pBuffer[buffOffset] = kId;
+        buffOffset += sizeof(uint16_t);
+
+        /* Write name and its size */
+        sizeProp = krName.size();
+        *(uint8_t*)&pBuffer[buffOffset++] = sizeProp;
+        memcpy(&pBuffer[buffOffset], krName.c_str(), sizeProp);
+        buffOffset += sizeProp;
+
+        /* Write brightness */
+        *(uint8_t*)&pBuffer[buffOffset++] = pkPattern->GetBrightness();
+
+        /* Write animation number  */
+        sizeProp = tmpAnims.size();
+        *(uint8_t*)&pBuffer[buffOffset++] = sizeProp;
+
+        /* Write colors number  */
+        sizeProp = tmpColors.size();
+        *(uint8_t*)&pBuffer[buffOffset++] = sizeProp;
+
+        /* Write animations */
+        for(const SAnimation& krAnim : tmpAnims)
+        {
+            *(uint8_t*)&pBuffer[buffOffset++] = krAnim.type;
+            *(uint16_t*)&pBuffer[buffOffset] = krAnim.startIdx;
+            buffOffset += sizeof(uint16_t);
+            *(uint16_t*)&pBuffer[buffOffset] = krAnim.endIdx;
+            buffOffset += sizeof(uint16_t);
+            *(uint8_t*)&pBuffer[buffOffset++] = krAnim.param;
+        }
+
+        /* Write colors */
+        for(const SColor& krColor : tmpColors)
+        {
+            *(uint16_t*)&pBuffer[buffOffset] = krColor.startIdx;
+            buffOffset += sizeof(uint16_t);
+            *(uint16_t*)&pBuffer[buffOffset] = krColor.endIdx;
+            buffOffset += sizeof(uint16_t);
+            *(uint32_t*)&pBuffer[buffOffset] = krColor.startColorCode;
+            buffOffset += sizeof(uint32_t);
+            *(uint32_t*)&pBuffer[buffOffset] = krColor.endColorCode;
+            buffOffset += sizeof(uint32_t);
+        }
+
+    }
+
+    std::shared_ptr<Pattern> DeserializePattern(const uint8_t* pBuffer,
+                                                const bool kHasId) const
+    {
+        size_t      buffOffset;
+        size_t      sizeProp;
+        size_t      sizePropSec;
+        uint16_t    patternId;
+        std::string name;
+        SAnimation  tmpAnim;
+        SColor      tmpColor;
+
+        std::vector<SAnimation>  anims;
+        std::vector<SColor>      colors;
+        std::shared_ptr<Pattern> patternPtr;
+
+        buffOffset = 0;
+
+        if(kHasId == true)
+        {
+            /* Get the ID */
+            patternId = *(uint16_t*)&pBuffer[buffOffset];
+            buffOffset += sizeof(uint16_t);
+        }
+        else
+        {
+            patternId = 0xFFFF;
+        }
+
+        /* Get name size and name */
+        sizeProp = *(uint8_t*)&pBuffer[buffOffset++];
+
+        name = std::string(&pBuffer[buffOffset],
+                           &pBuffer[buffOffset] + sizeProp);
+        buffOffset += sizeProp;
+
+        LOG_DEBUG("Id %d\n", patternId);
+
+        LOG_DEBUG("Name: %s | %d\n", name.c_str(), sizeProp);
+
+        /* Create the pattern */
+        patternPtr = std::make_shared<Pattern>(patternId, name);
+
+        /* Set brightness */
+        patternPtr->SetBrightness(*(uint8_t*)&pBuffer[buffOffset++]);
+
+        LOG_DEBUG("Brightness %d\n", patternPtr->GetBrightness());
+
+        /* Get animation and color number */
+        sizeProp = *(uint8_t*)&pBuffer[buffOffset++];
+        sizePropSec = *(uint8_t*)&pBuffer[buffOffset++];
+
+        LOG_DEBUG("%d Animations | %d Colors\n", sizeProp, sizePropSec);
+
+        LOG_DEBUG("Offset: %d\n", buffOffset);
+
+        /* Get animations */
+        while(sizeProp > 0)
+        {
+            tmpAnim.type = *(uint8_t*)&pBuffer[buffOffset++];
+            tmpAnim.startIdx = *(uint16_t*)&pBuffer[buffOffset];
+            buffOffset += sizeof(uint16_t);
+            tmpAnim.endIdx = *(uint16_t*)&pBuffer[buffOffset];
+            buffOffset += sizeof(uint16_t);
+            tmpAnim.param = *(uint8_t*)&pBuffer[buffOffset++];
+
+            anims.push_back(tmpAnim);
+            --sizeProp;
+
+            LOG_DEBUG("Anim Type %d | Start %d | End %d | Param %d\n",
+            anims[anims.size() - 1].type,
+            anims[anims.size() - 1].startIdx,
+            anims[anims.size() - 1].endIdx,
+            anims[anims.size() - 1].param);
+        }
+        patternPtr->SetAnimations(anims);
+
+        /* Get colors */
+        while(sizePropSec > 0)
+        {
+            tmpColor.startIdx = *(uint16_t*)&pBuffer[buffOffset];
+            buffOffset += sizeof(uint16_t);
+            tmpColor.endIdx = *(uint16_t*)&pBuffer[buffOffset];
+            buffOffset += sizeof(uint16_t);
+            tmpColor.startColorCode = *(uint32_t*)&pBuffer[buffOffset];
+            buffOffset += sizeof(uint32_t);
+            tmpColor.endColorCode = *(uint32_t*)&pBuffer[buffOffset];
+            buffOffset += sizeof(uint32_t);
+
+            colors.push_back(tmpColor);
+            --sizePropSec;
+
+            LOG_DEBUG("Color Start %d | End %d | Start C %d | End C %d\n",
+            colors[colors.size() - 1].startIdx,
+            colors[colors.size() - 1].endIdx,
+            colors[colors.size() - 1].startColorCode,
+            colors[colors.size() - 1].endColorCode);
+        }
+        patternPtr->SetColors(colors);
+
+        return patternPtr;
     }
 };
 
@@ -171,27 +485,27 @@ class ManageSceneCallback: public BLECharacteristicCallbacks
         switch(*data)
         {
             case BLE_CMD_SCENE_MGT_ADD:
-                onAdd(data + sizeof(uint8_t), pManageSceneCharacteristic);
+                onSceneAdd(data + sizeof(uint8_t), pManageSceneCharacteristic);
                 break;
             case BLE_CMD_SCENE_MGT_REM:
-                onRemove(data + sizeof(uint8_t), pManageSceneCharacteristic);
+                onSceneRemove(data + sizeof(uint8_t), pManageSceneCharacteristic);
                 break;
             case BLE_CMD_SCENE_MGT_UPD:
-                onUpdate(data + sizeof(uint8_t), pManageSceneCharacteristic);
+                onSceneUpdate(data + sizeof(uint8_t), pManageSceneCharacteristic);
                 break;
             case BLE_CMD_SCENE_MGT_CNT:
-                onGetCount(data + sizeof(uint8_t), pManageSceneCharacteristic);
+                onGetSceneCount(data + sizeof(uint8_t), pManageSceneCharacteristic);
                 break;
             case BLE_CMD_SCENE_MGT_GET:
-                onGet(data + sizeof(uint8_t), pManageSceneCharacteristic);
+                onGetScene(data + sizeof(uint8_t), pManageSceneCharacteristic);
                 break;
             default:
                 LOG_ERROR("Unknown command %d\n", *data);
         }
     }
 
-    void onAdd(const uint8_t* kpData,
-               BLECharacteristic* pManageSceneCharacteristic) const
+    void onSceneAdd(const uint8_t* kpData,
+                    BLECharacteristic* pManageSceneCharacteristic) const
     {
         uint8_t        retValue;
         StripsManager* pStripManager;
@@ -206,7 +520,7 @@ class ManageSceneCallback: public BLECharacteristicCallbacks
         pManageSceneCharacteristic->setValue(&retValue, sizeof(uint8_t));
     }
 
-    void onRemove(const uint8_t* kpData,
+    void onSceneRemove(const uint8_t* kpData,
                   BLECharacteristic* pManageSceneCharacteristic) const
     {
         StripsManager* pStripManager;
@@ -219,8 +533,8 @@ class ManageSceneCallback: public BLECharacteristicCallbacks
         pManageSceneCharacteristic->setValue((uint8_t*)&result, sizeof(bool));
     }
 
-    void onUpdate(const uint8_t* kpData,
-                  BLECharacteristic* pManageSceneCharacteristic) const
+    void onSceneUpdate(const uint8_t* kpData,
+                       BLECharacteristic* pManageSceneCharacteristic) const
     {
         uint8_t        retValue;
         StripsManager* pStripManager;
@@ -243,8 +557,8 @@ class ManageSceneCallback: public BLECharacteristicCallbacks
         pManageSceneCharacteristic->setValue(&retValue, sizeof(uint8_t));
     }
 
-    void onGetCount(const uint8_t* kpData,
-                    BLECharacteristic* pManageSceneCharacteristic) const
+    void onGetSceneCount(const uint8_t* kpData,
+                         BLECharacteristic* pManageSceneCharacteristic) const
     {
         uint8_t pBuffer;
 
@@ -253,8 +567,8 @@ class ManageSceneCallback: public BLECharacteristicCallbacks
         pManageSceneCharacteristic->setValue(&pBuffer, sizeof(uint8_t));
     }
 
-    void onGet(const uint8_t* kpData,
-               BLECharacteristic* pManageSceneCharacteristic) const
+    void onGetScene(const uint8_t* kpData,
+                    BLECharacteristic* pManageSceneCharacteristic) const
     {
         size_t         bufferSize;
         uint8_t        error;
@@ -269,6 +583,8 @@ class ManageSceneCallback: public BLECharacteristicCallbacks
         pkScene = StripsManager::GetInstance()->GetSceneInfo(*kpData);
         if(pkScene == nullptr)
         {
+            pStripManager->Unlock();
+
             error = -1;
             LOG_ERROR("Requested info for unknown scene %d\n", *kpData);
             pManageSceneCharacteristic->setValue(&error, sizeof(uint8_t));

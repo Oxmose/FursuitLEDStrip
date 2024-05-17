@@ -23,7 +23,6 @@
  ******************************************************************************/
 
 #include <cstdint> /* Standard Int Types */
-#include <Types.h> /* Defined types */
 #include <OLED.h>  /* OLED screen manager */
 #include <IOButtonMgr.h> /* Button manager */
 

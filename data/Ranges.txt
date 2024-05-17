@@ -1,0 +1,6 @@
+| Object              | Type      | Range     |
+|---------------------------------------------|
+| Scene ID            | uint8_t   | 0 - 254   |
+| Pattern ID          | uint16_t  | 0 - 65535 |
+| Brightness          | uint8_t   | 0 - 255   |
+| Number of LED/Strip | uint16_t  | 0 - 65535 |

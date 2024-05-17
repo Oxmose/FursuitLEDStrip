@@ -22,7 +22,6 @@
  ******************************************************************************/
 
 #include <cstdint> /* Standard Int Types */
-#include <Types.h> /* Defined types */
 #include <BLEDevice.h> /* BLE Device Services*/
 #include <BLEUtils.h>  /* BLE Untils Services*/
 #include <BLEServer.h> /* BLE Server Services*/

@@ -21,7 +21,6 @@
 #include <cstdint>   /* Generic types */
 #include <Arduino.h> /* Arduino Main Header File */
 #include <HWLayer.h> /* Hardware services */
-#include <Types.h>   /* Custom types */
 #include <Logger.h>  /* Logger */
 #include <version.h> /* Versioning */
 #include <SystemState.h> /* System state */
@@ -87,132 +86,6 @@ void loop(void);
 /*******************************************************************************
  * FUNCTIONS
  ******************************************************************************/
-#define INIT_FLASH 0
-#if INIT_FLASH
-static void InitFlash(void)
-{
-    Storage* pStorage;
-    std::shared_ptr<Pattern> patternPtr0;
-    std::shared_ptr<Pattern> patternPtr1;
-    std::shared_ptr<Pattern> patternPtr2;
-    std::vector<std::shared_ptr<Pattern>> pat;
-    std::vector<SColor> colors;
-    std::vector<SAnimation> anims;
-    std::unordered_map<uint8_t, uint16_t> map;
-    SSceneTable scenes;
-
-    pStorage = Storage::GetInstance();
-
-    patternPtr0 = std::make_shared<Pattern>(0, "P0");
-    patternPtr0->SetBrightness(25);
-    colors.push_back({
-        .startIdx = 14,
-        .endIdx   = 29,
-        .startColorCode = 255,
-        .endColorCode = 0
-    });
-    colors.push_back({
-        .startIdx = 44,
-        .endIdx   = 59,
-        .startColorCode = 255,
-        .endColorCode = 0
-    });
-    colors.push_back({
-        .startIdx = 60,
-        .endIdx   = 75,
-        .startColorCode = 0,
-        .endColorCode = 255
-    });
-    colors.push_back({
-        .startIdx = 90,
-        .endIdx   = 105,
-        .startColorCode = 0,
-        .endColorCode = 255
-    });
-    patternPtr0->SetColors(colors);
-
-    anims.push_back({
-        .type = ANIM_TRAIL,
-        .startIdx = 0,
-        .endIdx = 59,
-        .param = 1
-    });
-    anims.push_back({
-        .type = ANIM_TRAIL,
-        .startIdx = 119,
-        .endIdx = 60,
-        .param = 1
-    });
-    patternPtr0->SetAnimations(anims);
-
-    patternPtr1 = std::make_shared<Pattern>(1, "P1");
-    patternPtr1->SetBrightness(25);
-    colors.clear();
-    colors.push_back({
-        .startIdx = 0,
-        .endIdx   = 69,
-        .startColorCode = 255 << 16,
-        .endColorCode = 0
-    });
-    patternPtr1->SetColors(colors);
-
-    anims.clear();
-    anims.push_back({
-        .type = ANIM_BREATH,
-        .startIdx = 0,
-        .endIdx = 34,
-        .param = 1
-    });
-
-    patternPtr1->SetAnimations(anims);
-
-    patternPtr2 = std::make_shared<Pattern>(2, "P2");
-    patternPtr2->SetBrightness(100);
-    colors.clear();
-    colors.push_back({
-        .startIdx = 0,
-        .endIdx   = 69,
-        .startColorCode = 255 << 8,
-        .endColorCode = 0
-    });
-    patternPtr2->SetColors(colors);
-
-    anims.push_back({
-        .type = ANIM_TRAIL,
-        .startIdx = 0,
-        .endIdx = 20,
-        .param = 1
-    });
-    patternPtr2->SetAnimations(anims);
-
-    /* Patterns */
-    pat.push_back(patternPtr0);
-    pat.push_back(patternPtr1);
-    pat.push_back(patternPtr2);
-
-    /* Scenes */
-    scenes.selectedIdx = 1;
-    scenes.scenes.push_back(std::make_shared<SScene>());
-    scenes.scenes.push_back(std::make_shared<SScene>());
-
-    scenes.scenes[0]->name = "Scene0";
-    scenes.scenes[0]->links.emplace(18, 0);
-    scenes.scenes[0]->links.emplace(19, 1);
-
-    scenes.scenes[1]->name = "Scene1";
-    scenes.scenes[1]->links.emplace(18, 2);
-    scenes.scenes[1]->links.emplace(19, 2);
-
-
-    pStorage->SaveBrightness(255);
-    pStorage->SavePin("0000");
-    pStorage->SaveToken("1234567891113150");
-    pStorage->SavePatterns(pat);
-    pStorage->SaveScenes(scenes);
-
-    pStorage->Update(true);
-}
-#endif
 
 void setup(void)
 {
@@ -236,6 +109,10 @@ void setup(void)
     InitFlash();
 #endif
 
+    /* Get the storage */
+    psStorage = Storage::GetInstance();
+    psStorage->LoadData();
+
     /* Get the IO Buttons manager instance */
     psIOBtnManager = IOButtonMgr::GetInstance();
 
@@ -244,9 +121,6 @@ void setup(void)
 
     /* Manage boot reason */
     psSysState->ManageBoot();
-
-    /* Get the storage */
-    psStorage = Storage::GetInstance();
 
     /* Setup the strip manager */
     psStripManager = StripsManager::GetInstance();
@@ -270,6 +144,9 @@ void loop(void)
 
     /* Update the BLE manager */
     psBLEManager->Update();
+
+    /* Update the strip manager */
+    psStripManager->CheckForActivity();
 
     /* Update the storage manager without forcing a commit to flash */
     //psStorage->Update(false);

@@ -26,7 +26,6 @@
 #include <memory>  /* std::shared_ptr */
 #include <utility> /* std::pair */
 #include <unordered_map> /* std::unordered_map */
-#include <Types.h> /* Defined types */
 #include <Pattern.h> /* Patern object */
 #include <StripsManager.h> /* Strip manager types */
 
@@ -46,7 +45,7 @@
  * STRUCTURES AND TYPES
  ******************************************************************************/
 
-typedef std::pair<SSceneTable, bool>                           ScenesCache;
+typedef std::pair<std::vector<std::shared_ptr<SScene>>, bool>  ScenesCache;
 typedef std::pair<std::vector<std::shared_ptr<Pattern>>, bool> PatternCache;
 typedef std::pair<std::string, bool>                           StringCache;
 typedef std::pair<uint8_t, bool>                               Uint8Cache;
@@ -92,13 +91,17 @@ class Storage
     public:
         static Storage* GetInstance(void);
 
+        void LoadData(void);
+
         void Update(const bool kForce);
 
         void GetPatterns(std::vector<std::shared_ptr<Pattern>>& rPatterns) const;
         void SavePatterns(const std::vector<std::shared_ptr<Pattern>>& krPatterns);
 
-        void GetScenes(SSceneTable& rScenes) const;
-        void SaveScenes(const SSceneTable& krScenes);
+        void GetScenes(std::vector<std::shared_ptr<SScene>>& rScenes) const;
+        void SaveScenes(const std::vector<std::shared_ptr<SScene>>& krScenes);
+
+        void SaveSelectedScene(const uint8_t kSelectedScene);
 
         uint8_t GetBrightness(void) const;
         void SaveBrightness(const uint8_t kBrightness);
@@ -117,17 +120,23 @@ class Storage
     /********************* PRIVATE METHODS AND ATTRIBUTES *********************/
     private:
         Storage(void);
+
         void Commit(const bool kForce);
+
         void WriteFile(const char* kpPath,
                        const uint8_t* kpBuffer,
                        size_t& rSize) const;
         void ReadFile(const char* kpPath,
                       uint8_t* pBuffer,
                       size_t& rSize) const;
+
         void LoadPatterns(void);
         void CommitPattern(const std::shared_ptr<Pattern>& krPattern) const;
+
         void LoadScenes(void);
         void CommitScenes(void) const;
+
+        void FactoryReset(void);
 
         bool     isInit_;
         bool     needUpdate_;
@@ -139,6 +148,7 @@ class Storage
         StringCache  pin_;
         StringCache  token_;
         Uint8Cache   brightness_;
+        Uint8Cache   selectedScene_;
 
         /* Instance */
         static Storage* PINSTANCE_;

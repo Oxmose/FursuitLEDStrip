@@ -99,20 +99,21 @@ class LEDStrip
         virtual bool IsEnabled(void) const = 0;
 };
 
-template<gpio_num_t kGpioId, uint16_t kNumLeds>
+template<gpio_num_t kGpioId, gpio_num_t kMosfetId, uint16_t kNumLeds>
 class LEDStripC : public LEDStrip
 {
     public:
-        LEDStripC(const char* kpName,
-                  const bool kIsEnabled) :
+        LEDStripC(const char* kpName) :
         rCtrl_(FastLED.addLeds<WS2812B, (uint8_t)kGpioId, GRB>(leds_,
                                                                (int)kNumLeds))
         {
             name_         = std::string(kpName);
-            isEnabled_    = kIsEnabled;
+            isEnabled_    = true;
             applyIter_    = 0;
             breathIn_     = false;
             updateColors_ = true;
+
+            SetEnabled(false);
 
             rCtrl_.setCorrection(TypicalLEDStrip);
         }
@@ -141,6 +142,11 @@ class LEDStripC : public LEDStrip
 
         virtual void Apply(const Pattern* pPattern)
         {
+            if(isEnabled_ == false)
+            {
+                return;
+            }
+
             /* Apply colors */
             if(updateColors_ == true)
             {
@@ -178,6 +184,26 @@ class LEDStripC : public LEDStrip
 
         virtual void SetEnabled(const bool kEnable)
         {
+            if(kEnable == false && isEnabled_ == true)
+            {
+                /* Switch off the mosfet */
+                pinMode(kMosfetId, OUTPUT);
+                digitalWrite(kMosfetId, LOW);
+
+                /* Stop controller pin on the mosfet */
+                pinMode(kGpioId, OUTPUT);
+                digitalWrite(kGpioId, LOW);
+
+                LOG_DEBUG("Disabling Strip %d\n", kGpioId);
+            }
+            else if(kEnable == true && isEnabled_ == false)
+            {
+                /* Switch on the mosfet */
+                pinMode(kMosfetId, OUTPUT);
+                digitalWrite(kMosfetId, HIGH);
+
+                LOG_DEBUG("Enabling Strip %d\n", kGpioId);
+            }
             isEnabled_ = kEnable;
         }
 
@@ -190,7 +216,7 @@ class LEDStripC : public LEDStrip
 
     private:
         void ApplyColor(const std::vector<SColor>& krColors,
-                        const uint32_t kBrightness)
+                        const uint8_t kBrightness)
         {
             uint32_t i;
 
@@ -223,9 +249,9 @@ class LEDStripC : public LEDStrip
             for(i = 0; i < kNumLeds; ++i)
             {
                 ledsInit_[i] = leds_[i];
-                leds_[i].g = (uint8_t)((uint32_t)leds_[i].g * brightness_ / 255U);
-                leds_[i].r = (uint8_t)((uint32_t)leds_[i].r * brightness_ / 255U);
-                leds_[i].b = (uint8_t)((uint32_t)leds_[i].b * brightness_ / 255U);
+                leds_[i].g = (uint8_t)((uint32_t)leds_[i].g * (uint32_t)brightness_ / 255U);
+                leds_[i].r = (uint8_t)((uint32_t)leds_[i].r * (uint32_t)brightness_ / 255U);
+                leds_[i].b = (uint8_t)((uint32_t)leds_[i].b * (uint32_t)brightness_ / 255U);
             }
         }
 
@@ -292,22 +318,21 @@ class LEDStripC : public LEDStrip
 
                 for(i = krAnim.startIdx; i <= krAnim.endIdx; ++i)
                 {
-                    leds_[i].g = (uint8_t)((uint32_t)ledsInit_[i].g * brightness_ / 255U);
-                    leds_[i].r = (uint8_t)((uint32_t)ledsInit_[i].r * brightness_ / 255U);
-                    leds_[i].b = (uint8_t)((uint32_t)ledsInit_[i].b * brightness_ / 255U);
+                    leds_[i].g = (uint8_t)((uint32_t)ledsInit_[i].g * (uint32_t)brightness_ / 255U);
+                    leds_[i].r = (uint8_t)((uint32_t)ledsInit_[i].r * (uint32_t)brightness_ / 255U);
+                    leds_[i].b = (uint8_t)((uint32_t)ledsInit_[i].b * (uint32_t)brightness_ / 255U);
                 }
             }
         }
 
-        bool        isEnabled_;
-        bool        updateColors_;
-        bool        breathIn_;
-        uint32_t    applyIter_;
-        uint32_t    brightness_;
-        uint32_t    maxBrightness_;
+        bool     isEnabled_;
+        bool     updateColors_;
+        bool     breathIn_;
+        uint32_t applyIter_;
+        uint8_t  brightness_;
+        uint8_t  maxBrightness_;
 
         std::string name_;
-
 
         CLEDController& rCtrl_;
         CRGB            leds_[kNumLeds];

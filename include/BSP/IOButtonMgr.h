@@ -27,8 +27,6 @@
 #include <string>  /* std::string */
 #include <cstdint> /* Generic Types */
 
-#include <Types.h>            /* Defined Types */
-
 /*******************************************************************************
  * CONSTANTS
  ******************************************************************************/
@@ -102,7 +100,7 @@ class IOButtonMgr
     public:
         static IOButtonMgr* GetInstance(void);
 
-        EErrorCode Update(void);
+        void Update(void);
 
         EButtonState GetButtonState(const EButtonID kBtnId) const;
         uint64_t     GetButtonKeepTime(const EButtonID kBtnId) const;
@@ -113,10 +111,9 @@ class IOButtonMgr
     /********************* PRIVATE METHODS AND ATTRIBUTES *********************/
     private:
         IOButtonMgr(void);
-        EErrorCode Init(void);
+        void Init(void);
 
-        EErrorCode SetupBtn (const EButtonID  kBtnId,
-                             const EButtonPin kBtnPin);
+        void SetupBtn (const EButtonID  kBtnId, const EButtonPin kBtnPin);
 
         int8_t       pBtnPins_[BUTTON_MAX_ID];
         uint64_t     pBtnLastPress_[BUTTON_MAX_ID];
