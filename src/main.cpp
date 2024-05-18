@@ -155,6 +155,6 @@ void loop(void)
     endTime = HWLayer::GetTime();
     if(endTime - startTime < 25000)
     {
-        delay((25000 - (endTime - startTime)) / 1000);
+        HWLayer::DelayExecUs((25000 - (endTime - startTime)), true);
     }
 }

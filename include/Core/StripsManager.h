@@ -89,17 +89,17 @@ class StripsManager
 
         void GetStripsInfo(StripsInfoTable_t& rStripsInfo) const;
 
-        uint16_t AddPattern(const std::shared_ptr<Pattern>& rkNewPattern);
+        uint16_t AddPattern(const std::shared_ptr<Pattern>& krNewPattern);
         bool RemovePattern(const uint16_t kPatternId);
-        bool UpdatePattern(const std::shared_ptr<Pattern>& rkNewPattern);
+        bool UpdatePattern(const std::shared_ptr<Pattern>& krNewPattern);
         const Pattern* GetPatternInfo(const uint16_t kPatternId);
         void GetPatternsIds(std::vector<uint16_t>& rPatternIds) const;
         uint16_t GetNewPatternId(void);
 
-        uint8_t AddScene(const std::shared_ptr<SScene>& rkNewScene);
+        uint8_t AddScene(const std::shared_ptr<SScene>& krNewScene);
         bool RemoveScene(const uint8_t kSceneIdx);
         bool UpdateScene(const uint8_t kSceneIdx,
-                         const std::shared_ptr<SScene>& rkScene);
+                         const std::shared_ptr<SScene>& krScene);
         void SelectScene(const uint8_t kSceneIdx);
         uint8_t GetSelectedScene(void) const;
         const SScene* GetSceneInfo(const uint8_t kSceneId);
@@ -121,7 +121,7 @@ class StripsManager
     private:
         StripsManager(void);
 
-        void AddStrip(std::shared_ptr<LEDStrip> newStrip);
+        void AddStrip(const std::shared_ptr<LEDStrip>& krNewStrip);
         void ActivateScene(void);
 
         static void UpdateRoutine(void* objThis);

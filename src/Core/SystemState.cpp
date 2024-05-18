@@ -147,7 +147,7 @@ void SystemState::ManageBoot(void)
             return;
         }
 
-        delay(100);
+        HWLayer::DelayExecUs(100000, true);
     } while(btState == BTN_STATE_DOWN ||
             btState == BTN_STATE_KEEP);
 
@@ -472,13 +472,12 @@ void SystemState::Hibernate(const bool kDisplay)
         {
             oledDisplay_.DisplaySleep();
             StripsManager::GetInstance()->Kill();
-            delay(3000);
+            HWLayer::DelayExecUs(3000000, true);
             oledDisplay_.SwitchOff();
         }
         else
         {
             StripsManager::GetInstance()->Kill();
-            delay(500);
         }
 
         esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH,   ESP_PD_OPTION_OFF);

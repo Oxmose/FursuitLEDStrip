@@ -99,8 +99,8 @@ class Pattern
         Pattern(const uint16_t kIdentifier,
                 const std::string& krName);
 
-        void SetAnimations(const std::vector<SAnimation>& rAnimations);
-        void SetColors(const std::vector<SColor>& rColors);
+        void SetAnimations(const std::vector<SAnimation>& krAnimations);
+        void SetColors(const std::vector<SColor>& krColors);
         void SetBrightness(const uint8_t kBrightness);
 
         const std::vector<SAnimation>& GetAnimations(void) const;

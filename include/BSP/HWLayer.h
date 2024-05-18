@@ -100,6 +100,9 @@ class HWLayer
 
         static uint64_t GetTime(void);
 
+        static void DelayExecUs(const uint64_t kDelayUs, 
+                                const bool kForcePassive);
+
     /******************* PROTECTED METHODS AND ATTRIBUTES *********************/
     protected:
 

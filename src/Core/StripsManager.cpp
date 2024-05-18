@@ -106,7 +106,7 @@ void StripsManager::GetStripsInfo(StripsInfoTable_t& rStripsInfo) const
     }
 }
 
-uint16_t StripsManager::AddPattern(const std::shared_ptr<Pattern>& rkNewPattern)
+uint16_t StripsManager::AddPattern(const std::shared_ptr<Pattern>& krNewPattern)
 {
     uint16_t newId;
 
@@ -115,7 +115,7 @@ uint16_t StripsManager::AddPattern(const std::shared_ptr<Pattern>& rkNewPattern)
     {
         Unlock();
 
-        LOG_ERROR("Tried to add existing pattern %d\n", rkNewPattern->GetId());
+        LOG_ERROR("Tried to add existing pattern %d\n", krNewPattern->GetId());
         return false;
     }
 
@@ -125,14 +125,14 @@ uint16_t StripsManager::AddPattern(const std::shared_ptr<Pattern>& rkNewPattern)
         return newId;
     }
 
-    patterns_[newId] = rkNewPattern;
+    patterns_[newId] = krNewPattern;
     patterns_[newId]->ForceId(newId);
 
     Unlock();
 
     SavePatterns();
 
-    LOG_DEBUG("Added pattern %d\n", rkNewPattern->GetId());
+    LOG_DEBUG("Added pattern %d\n", krNewPattern->GetId());
 
     return newId;
 }
@@ -183,12 +183,12 @@ bool StripsManager::RemovePattern(const uint16_t kPatternId)
     return true;
 }
 
-bool StripsManager::UpdatePattern(const std::shared_ptr<Pattern>& rkNewPattern)
+bool StripsManager::UpdatePattern(const std::shared_ptr<Pattern>& krNewPattern)
 {
     uint16_t patternId;
     std::unordered_map<uint8_t, uint16_t>::iterator it;
 
-    patternId = rkNewPattern->GetId();
+    patternId = krNewPattern->GetId();
 
     Lock();
 
@@ -201,7 +201,7 @@ bool StripsManager::UpdatePattern(const std::shared_ptr<Pattern>& rkNewPattern)
     }
 
     /* Update the pattern */
-    patterns_[patternId] = rkNewPattern;
+    patterns_[patternId] = krNewPattern;
 
     /* Update colors for all links */
     if(selectedScene_ != 255)
@@ -271,14 +271,14 @@ uint16_t StripsManager::GetNewPatternId(void)
     return newId;
 }
 
-uint8_t StripsManager::AddScene(const std::shared_ptr<SScene>& rkNewScene)
+uint8_t StripsManager::AddScene(const std::shared_ptr<SScene>& krNewScene)
 {
     uint8_t retVal;
 
     Lock();
 
     /* Check that the patterns and strips exist for the scene */
-    for(const std::pair<uint8_t, uint16_t>& link : rkNewScene->links)
+    for(const std::pair<uint8_t, uint16_t>& link : krNewScene->links)
     {
         if(strips_.count(link.first) == 0 ||
            patterns_.count(link.second) == 0)
@@ -346,12 +346,12 @@ bool StripsManager::RemoveScene(const uint8_t kSceneIdx)
 }
 
 bool StripsManager::UpdateScene(const uint8_t kSceneIdx,
-                                const std::shared_ptr<SScene>& rkScene)
+                                const std::shared_ptr<SScene>& krScene)
 {
     Lock();
     if(kSceneIdx < scenes_.size())
     {
-        scenes_[kSceneIdx] = rkScene;
+        scenes_[kSceneIdx] = krScene;
         if(selectedScene_ == kSceneIdx)
         {
             Unlock();

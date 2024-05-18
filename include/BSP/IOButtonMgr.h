@@ -111,7 +111,6 @@ class IOButtonMgr
     /********************* PRIVATE METHODS AND ATTRIBUTES *********************/
     private:
         IOButtonMgr(void);
-        void Init(void);
 
         void SetupBtn (const EButtonID  kBtnId, const EButtonPin kBtnPin);
 

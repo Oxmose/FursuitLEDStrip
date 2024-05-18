@@ -147,11 +147,6 @@ IOButtonMgr::IOButtonMgr(void)
     memset(pBtnLastPress_, 0, sizeof(uint64_t) * BUTTON_MAX_ID);
     memset(pBtnStates_, 0, sizeof(EButtonState) * BUTTON_MAX_ID);
 
-    Init();
-}
-
-void IOButtonMgr::Init(void)
-{
     SetupBtn(BUTTON_ENTER, ENTER_PIN);
 }
 

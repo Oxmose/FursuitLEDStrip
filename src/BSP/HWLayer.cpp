@@ -20,9 +20,11 @@
  * INCLUDES
  ******************************************************************************/
 #include <string>  /* std::string*/
+
 #include <esp_mac.h>  /* Mac address provider */
 #include <esp_timer.h>  /* Timer provider */
-
+#include <Arduino.h>     /* Task and Delay services */
+#include <Logger.h> /* Logger service */
 /* Header File */
 #include <HWLayer.h>
 
@@ -82,7 +84,6 @@ const char * HWLayer::GetHWUID(void)
 {
     uint8_t  value[6];
     uint8_t  i;
-    uint8_t  curVal;
 
     /* Check if the HWUID was already generated */
     if(HWLayer::HWUID_.size() == 0)
@@ -133,4 +134,18 @@ uint64_t HWLayer::GetTime(void)
     HWLayer::TIME_ = (uint64_t)esp_timer_get_time();
 
     return HWLayer::TIME_;
+}
+
+void HWLayer::DelayExecUs(const uint64_t kDelayUs, const bool kForcePassive)
+{
+    /* Check if we can use a precise wait */
+    if(kDelayUs > 1000 && kDelayUs % 1000 == 0)
+    {
+        vTaskDelay(kDelayUs / 1000);
+    }
+    else if(kForcePassive)
+    {
+        LOG_ERROR("Cannot perform passive wait with delay %llu\n", kDelayUs);
+    }
+    ets_delay_us(kDelayUs);
 }
